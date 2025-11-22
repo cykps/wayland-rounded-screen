@@ -1,25 +1,15 @@
-//! This example is horrible. Please make a better one soon.
-
-const R: u32 = 24;
-// const R: u32 = 256;
+const RADIUS: u32 = 24;
 
 use std::{convert::TryInto, num::NonZeroU32};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, Region},
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
-    delegate_registry, delegate_seat, delegate_shm,
+    delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_seat,
+    delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
-    seat::{
-        Capability,
-        SeatHandler,
-        SeatState,
-        // input_method_v3::Anchor,
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers},
-        pointer::{PointerEvent, PointerEventKind, PointerHandler},
-    },
+    seat::{Capability, SeatHandler, SeatState},
     shell::{
         WaylandSurface,
         wlr_layer::{
@@ -32,7 +22,7 @@ use smithay_client_toolkit::{
 use wayland_client::{
     Connection, QueueHandle,
     globals::registry_queue_init,
-    protocol::{wl_keyboard, wl_output, wl_pointer, wl_region, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_output, wl_seat, wl_shm, wl_surface},
 };
 
 fn main() {
@@ -67,7 +57,7 @@ fn main() {
     // interactivity
     layer.set_anchor(Anchor::BOTTOM | Anchor::RIGHT);
     layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-    layer.set_size(R, R);
+    layer.set_size(RADIUS, RADIUS);
     layer.set_exclusive_zone(-1);
 
     // In order for the layer surface to be mapped, we need to perform an initial commit with no attached\
@@ -79,7 +69,7 @@ fn main() {
 
     // We don't know how large the window will be yet, so lets assume the minimum size we suggested for the
     // initial memory allocation.
-    let pool = SlotPool::new(R.pow(2) as usize * 4, &shm).expect("Failed to create pool");
+    let pool = SlotPool::new(RADIUS.pow(2) as usize * 4, &shm).expect("Failed to create pool");
 
     let mut simple_layer = SimpleLayer {
         // Seats and outputs may be hotplugged at runtime, therefore we need to setup a registry state to
@@ -92,13 +82,8 @@ fn main() {
         exit: false,
         first_configure: true,
         pool,
-        width: 16,
-        height: 16,
-        shift: None,
+        radius: 16,
         layer,
-        keyboard: None,
-        keyboard_focus: false,
-        pointer: None,
     };
 
     // We don't draw immediately, the configure will notify us when to first draw.
@@ -121,13 +106,8 @@ struct SimpleLayer {
     exit: bool,
     first_configure: bool,
     pool: SlotPool,
-    width: u32,
-    height: u32,
-    shift: Option<u32>,
+    radius: u32,
     layer: LayerSurface,
-    keyboard: Option<wl_keyboard::WlKeyboard>,
-    keyboard_focus: bool,
-    pointer: Option<wl_pointer::WlPointer>,
 }
 
 impl CompositorHandler for SimpleLayer {
@@ -225,8 +205,7 @@ impl LayerShellHandler for SimpleLayer {
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        self.width = NonZeroU32::new(configure.new_size.0).map_or(R, NonZeroU32::get);
-        self.height = NonZeroU32::new(configure.new_size.1).map_or(R, NonZeroU32::get);
+        self.radius = NonZeroU32::new(configure.new_size.1).map_or(RADIUS, NonZeroU32::get);
 
         // Initiate the first draw.
         if self.first_configure {
@@ -246,27 +225,10 @@ impl SeatHandler for SimpleLayer {
     fn new_capability(
         &mut self,
         _conn: &Connection,
-        qh: &QueueHandle<Self>,
-        seat: wl_seat::WlSeat,
-        capability: Capability,
+        _qh: &QueueHandle<Self>,
+        _seat: wl_seat::WlSeat,
+        _capability: Capability,
     ) {
-        // if capability == Capability::Keyboard && self.keyboard.is_none() {
-        //     println!("Set keyboard capability");
-        //     let keyboard = self
-        //         .seat_state
-        //         .get_keyboard(qh, &seat, None)
-        //         .expect("Failed to create keyboard");
-        //     self.keyboard = Some(keyboard);
-        // }
-        //
-        // if capability == Capability::Pointer && self.pointer.is_none() {
-        //     println!("Set pointer capability");
-        //     let pointer = self
-        //         .seat_state
-        //         .get_pointer(qh, &seat)
-        //         .expect("Failed to create pointer");
-        //     self.pointer = Some(pointer);
-        // }
     }
 
     fn remove_capability(
@@ -274,198 +236,12 @@ impl SeatHandler for SimpleLayer {
         _conn: &Connection,
         _: &QueueHandle<Self>,
         _: wl_seat::WlSeat,
-        capability: Capability,
+        _capability: Capability,
     ) {
-        // if capability == Capability::Keyboard && self.keyboard.is_some() {
-        //     println!("Unset keyboard capability");
-        //     self.keyboard.take().unwrap().release();
-        // }
-        //
-        // if capability == Capability::Pointer && self.pointer.is_some() {
-        //     println!("Unset pointer capability");
-        //     self.pointer.take().unwrap().release();
-        // }
     }
 
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
-
-// impl SeatHandler for SimpleLayer {
-//     fn seat_state(&mut self) -> &mut SeatState {
-//         &mut self.seat_state
-//     }
-//
-//     fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-//
-//     fn new_capability(
-//         &mut self,
-//         _conn: &Connection,
-//         qh: &QueueHandle<Self>,
-//         seat: wl_seat::WlSeat,
-//         capability: Capability,
-//     ) {
-//         if capability == Capability::Keyboard && self.keyboard.is_none() {
-//             println!("Set keyboard capability");
-//             let keyboard = self
-//                 .seat_state
-//                 .get_keyboard(qh, &seat, None)
-//                 .expect("Failed to create keyboard");
-//             self.keyboard = Some(keyboard);
-//         }
-//
-//         if capability == Capability::Pointer && self.pointer.is_none() {
-//             println!("Set pointer capability");
-//             let pointer = self
-//                 .seat_state
-//                 .get_pointer(qh, &seat)
-//                 .expect("Failed to create pointer");
-//             self.pointer = Some(pointer);
-//         }
-//     }
-//
-//     fn remove_capability(
-//         &mut self,
-//         _conn: &Connection,
-//         _: &QueueHandle<Self>,
-//         _: wl_seat::WlSeat,
-//         capability: Capability,
-//     ) {
-//         if capability == Capability::Keyboard && self.keyboard.is_some() {
-//             println!("Unset keyboard capability");
-//             self.keyboard.take().unwrap().release();
-//         }
-//
-//         if capability == Capability::Pointer && self.pointer.is_some() {
-//             println!("Unset pointer capability");
-//             self.pointer.take().unwrap().release();
-//         }
-//     }
-//
-//     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-// }
-//
-// impl KeyboardHandler for SimpleLayer {
-//     fn enter(
-//         &mut self,
-//         _: &Connection,
-//         _: &QueueHandle<Self>,
-//         _: &wl_keyboard::WlKeyboard,
-//         surface: &wl_surface::WlSurface,
-//         _: u32,
-//         _: &[u32],
-//         keysyms: &[Keysym],
-//     ) {
-//         if self.layer.wl_surface() == surface {
-//             println!("Keyboard focus on window with pressed syms: {keysyms:?}");
-//             self.keyboard_focus = true;
-//         }
-//     }
-//
-//     fn leave(
-//         &mut self,
-//         _: &Connection,
-//         _: &QueueHandle<Self>,
-//         _: &wl_keyboard::WlKeyboard,
-//         surface: &wl_surface::WlSurface,
-//         _: u32,
-//     ) {
-//         if self.layer.wl_surface() == surface {
-//             println!("Release keyboard focus on window");
-//             self.keyboard_focus = false;
-//         }
-//     }
-//
-//     fn press_key(
-//         &mut self,
-//         _conn: &Connection,
-//         _qh: &QueueHandle<Self>,
-//         _: &wl_keyboard::WlKeyboard,
-//         _: u32,
-//         event: KeyEvent,
-//     ) {
-//         println!("Key press: {event:?}");
-//         // press 'esc' to exit
-//         if event.keysym == Keysym::Escape {
-//             self.exit = true;
-//         }
-//     }
-//
-//     fn repeat_key(
-//         &mut self,
-//         _conn: &Connection,
-//         _qh: &QueueHandle<Self>,
-//         _keyboard: &wl_keyboard::WlKeyboard,
-//         _serial: u32,
-//         event: KeyEvent,
-//     ) {
-//         println!("Key repeat: {event:?}");
-//     }
-//
-//     fn release_key(
-//         &mut self,
-//         _: &Connection,
-//         _: &QueueHandle<Self>,
-//         _: &wl_keyboard::WlKeyboard,
-//         _: u32,
-//         event: KeyEvent,
-//     ) {
-//         println!("Key release: {event:?}");
-//     }
-//
-//     fn update_modifiers(
-//         &mut self,
-//         _: &Connection,
-//         _: &QueueHandle<Self>,
-//         _: &wl_keyboard::WlKeyboard,
-//         _serial: u32,
-//         modifiers: Modifiers,
-//         _raw_modifiers: RawModifiers,
-//         _layout: u32,
-//     ) {
-//         println!("Update modifiers: {modifiers:?}");
-//     }
-// }
-//
-// impl PointerHandler for SimpleLayer {
-//     fn pointer_frame(
-//         &mut self,
-//         _conn: &Connection,
-//         _qh: &QueueHandle<Self>,
-//         _pointer: &wl_pointer::WlPointer,
-//         events: &[PointerEvent],
-//     ) {
-//         use PointerEventKind::*;
-//         for event in events {
-//             // Ignore events for other surfaces
-//             if &event.surface != self.layer.wl_surface() {
-//                 continue;
-//             }
-//             match event.kind {
-//                 Enter { .. } => {
-//                     println!("Pointer entered @{:?}", event.position);
-//                 }
-//                 Leave { .. } => {
-//                     println!("Pointer left");
-//                 }
-//                 Motion { .. } => {}
-//                 Press { button, .. } => {
-//                     println!("Press {:x} @ {:?}", button, event.position);
-//                     self.shift = self.shift.xor(Some(0));
-//                 }
-//                 Release { button, .. } => {
-//                     println!("Release {:x} @ {:?}", button, event.position);
-//                 }
-//                 Axis {
-//                     horizontal,
-//                     vertical,
-//                     ..
-//                 } => {
-//                     println!("Scroll H:{horizontal:?}, V:{vertical:?}");
-//                 }
-//             }
-//         }
-//     }
-// }
 
 impl ShmHandler for SimpleLayer {
     fn shm_state(&mut self) -> &mut Shm {
@@ -475,9 +251,9 @@ impl ShmHandler for SimpleLayer {
 
 impl SimpleLayer {
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
-        let width = self.width;
-        let height = self.height;
-        let stride = self.width as i32 * 4;
+        let width = self.radius;
+        let height = self.radius;
+        let stride = self.radius as i32 * 4;
 
         let (buffer, canvas) = self
             .pool
@@ -491,43 +267,24 @@ impl SimpleLayer {
 
         // Draw to the window:
         {
-            let shift = self.shift.unwrap_or(0);
             canvas
                 .chunks_exact_mut(4)
                 .enumerate()
                 .for_each(|(index, chunk)| {
-                    // let x = ((index + shift as usize) % width as usize) as u32;
-                    // let y = (index / width as usize) as u32;
-                    //
-                    // let a = 0x7F;
-                    // let r = u32::min(((width - x) * 0xFF) / width, ((height - y) * 0xFF) / height);
-                    // let g = u32::min((x * 0xFF) / width, ((height - y) * 0xFF) / height);
-                    // let b = u32::min(((width - x) * 0xFF) / width, (y * 0xFF) / height);
-                    // let color = (a << 24) + (r << 16) + (g << 8) + b;
-                    //
-                    // let array: &mut [u8; 4] = chunk.try_into().unwrap();
-                    // *array = color.to_le_bytes();
-
                     let x = (index % width as usize) as u32;
                     let y = (index / width as usize) as u32;
-                    let color: u32;
-                    let trans = 0x00000000;
-                    // let trans = 0xFF000000;
+                    let transport = 0x00000000;
                     let black = 0xFF000000;
 
-                    if x.pow(2) + y.pow(2) <= width.pow(2) {
-                        color = trans;
+                    let color: u32 = if x.pow(2) + y.pow(2) <= width.pow(2) {
+                        transport
                     } else {
-                        color = black;
-                    }
+                        black
+                    };
 
                     let array: &mut [u8; 4] = chunk.try_into().unwrap();
                     *array = color.to_le_bytes()
                 });
-
-            if let Some(shift) = &mut self.shift {
-                *shift = (*shift + 1) % width;
-            }
         }
 
         // Damage the entire window
@@ -557,8 +314,6 @@ delegate_output!(SimpleLayer);
 delegate_shm!(SimpleLayer);
 
 delegate_seat!(SimpleLayer);
-// delegate_keyboard!(SimpleLayer);
-// delegate_pointer!(SimpleLayer);
 
 delegate_layer!(SimpleLayer);
 
@@ -568,8 +323,5 @@ impl ProvidesRegistryState for SimpleLayer {
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }
-    registry_handlers![
-        OutputState,
-        // SeatState
-    ];
+    registry_handlers![OutputState];
 }
