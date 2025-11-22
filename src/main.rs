@@ -4,12 +4,10 @@ use std::{convert::TryInto, num::NonZeroU32};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, Region},
-    delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_seat,
-    delegate_shm,
+    delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_shm,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
-    seat::{Capability, SeatHandler, SeatState},
     shell::{
         WaylandSurface,
         wlr_layer::{
@@ -22,7 +20,7 @@ use smithay_client_toolkit::{
 use wayland_client::{
     Connection, QueueHandle,
     globals::registry_queue_init,
-    protocol::{wl_output, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_output, wl_shm, wl_surface},
 };
 
 fn main() {
@@ -75,14 +73,13 @@ fn main() {
         // Seats and outputs may be hotplugged at runtime, therefore we need to setup a registry state to
         // listen for seats and outputs.
         registry_state: RegistryState::new(&globals),
-        seat_state: SeatState::new(&globals, &qh),
         output_state: OutputState::new(&globals, &qh),
         shm,
 
         exit: false,
         first_configure: true,
         pool,
-        radius: 16,
+        radius: RADIUS,
         layer,
     };
 
@@ -99,7 +96,6 @@ fn main() {
 
 struct SimpleLayer {
     registry_state: RegistryState,
-    seat_state: SeatState,
     output_state: OutputState,
     shm: Shm,
 
@@ -118,7 +114,6 @@ impl CompositorHandler for SimpleLayer {
         _surface: &wl_surface::WlSurface,
         _new_factor: i32,
     ) {
-        // Not needed for this example.
     }
 
     fn transform_changed(
@@ -128,17 +123,15 @@ impl CompositorHandler for SimpleLayer {
         _surface: &wl_surface::WlSurface,
         _new_transform: wl_output::Transform,
     ) {
-        // Not needed for this example.
     }
 
     fn frame(
         &mut self,
         _conn: &Connection,
-        qh: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
         _surface: &wl_surface::WlSurface,
         _time: u32,
     ) {
-        self.draw(qh);
     }
 
     fn surface_enter(
@@ -148,7 +141,6 @@ impl CompositorHandler for SimpleLayer {
         _surface: &wl_surface::WlSurface,
         _output: &wl_output::WlOutput,
     ) {
-        // Not needed for this example.
     }
 
     fn surface_leave(
@@ -158,7 +150,6 @@ impl CompositorHandler for SimpleLayer {
         _surface: &wl_surface::WlSurface,
         _output: &wl_output::WlOutput,
     ) {
-        // Not needed for this example.
     }
 }
 
@@ -215,34 +206,6 @@ impl LayerShellHandler for SimpleLayer {
     }
 }
 
-impl SeatHandler for SimpleLayer {
-    fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
-    }
-
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-
-    fn new_capability(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _seat: wl_seat::WlSeat,
-        _capability: Capability,
-    ) {
-    }
-
-    fn remove_capability(
-        &mut self,
-        _conn: &Connection,
-        _: &QueueHandle<Self>,
-        _: wl_seat::WlSeat,
-        _capability: Capability,
-    ) {
-    }
-
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-}
-
 impl ShmHandler for SimpleLayer {
     fn shm_state(&mut self) -> &mut Shm {
         &mut self.shm
@@ -250,7 +213,7 @@ impl ShmHandler for SimpleLayer {
 }
 
 impl SimpleLayer {
-    pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+    pub fn draw(&mut self, _qh: &QueueHandle<Self>) {
         let width = self.radius;
         let height = self.radius;
         let stride = self.radius as i32 * 4;
@@ -293,9 +256,9 @@ impl SimpleLayer {
             .damage_buffer(0, 0, width as i32, height as i32);
 
         // Request our next frame
-        self.layer
-            .wl_surface()
-            .frame(qh, self.layer.wl_surface().clone());
+        // self.layer
+        //     .wl_surface()
+        //     .frame(qh, self.layer.wl_surface().clone());
 
         // Attach and commit to present.
         buffer
@@ -312,11 +275,8 @@ impl SimpleLayer {
 delegate_compositor!(SimpleLayer);
 delegate_output!(SimpleLayer);
 delegate_shm!(SimpleLayer);
-
-delegate_seat!(SimpleLayer);
-
+// delegate_seat!(SimpleLayer);
 delegate_layer!(SimpleLayer);
-
 delegate_registry!(SimpleLayer);
 
 impl ProvidesRegistryState for SimpleLayer {
