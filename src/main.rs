@@ -1,7 +1,7 @@
-mod corner;
+mod state;
 
-use corner::State;
 use smithay_client_toolkit::{compositor::CompositorState, shell::wlr_layer::LayerShell};
+use state::State;
 use wayland_client::{Connection, globals::registry_queue_init};
 
 fn main() {

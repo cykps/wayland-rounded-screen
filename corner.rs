@@ -1,6 +1,4 @@
-mod consts;
-use consts::RADIUS;
-
+mod state;
 use std::{convert::TryInto, num::NonZeroU32};
 
 use smithay_client_toolkit::{
@@ -24,9 +22,6 @@ use wayland_client::{
     protocol::{wl_output, wl_shm, wl_surface},
 };
 
-// pub const RADIUS: u32 = 24;
-pub const RADIUS: u32 = 256;
-
 // Structs
 
 pub struct CornerState {
@@ -43,6 +38,7 @@ impl CornerState {
         compositor: &CompositorState,
         shm: &Shm,
         qh: &QueueHandle<State>,
+        radius: u32,
         anchor: Anchor,
     ) -> CornerState {
         let surface = compositor.create_surface(qh);
