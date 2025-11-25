@@ -43,7 +43,7 @@ A Wayland client application that renders rounded corner overlays on the screen.
 
 4. Run the application:
    ```bash
-   ./target/release/rounded-screan
+   ./target/release/rounded-screen
    ```
 
 

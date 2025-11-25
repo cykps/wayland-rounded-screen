@@ -113,7 +113,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rounded-screan"
+name = "rounded-screen"
 version = "0.1.0"
 dependencies = [
  "smithay-client-toolkit",

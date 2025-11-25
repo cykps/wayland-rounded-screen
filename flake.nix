@@ -31,12 +31,12 @@
         };
 
         packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = "rounded-screan";
+          pname = "rounded-screen";
           version = "0.1.0";
 
           src = ./.;
 
-          cargoSha256 = "sha256-0000000000000000000000000000000000000000000000000000"; # Replace with the actual hash
+          cargoSha256 = "sha256-0000000000000000000000000000000000000000000000000000";
 
           nativeBuildInputs = [
             pkgs.wayland
@@ -45,7 +45,7 @@
 
         apps.default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/rounded-screan";
+          program = "${self.packages.${system}.default}/bin/rounded-screen";
         };
       }
     );
