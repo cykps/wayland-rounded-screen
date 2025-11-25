@@ -1,12 +1,10 @@
 mod state;
+use state::State;
 
 use smithay_client_toolkit::{compositor::CompositorState, shell::wlr_layer::LayerShell};
-use state::State;
 use wayland_client::{Connection, globals::registry_queue_init};
 
 fn main() {
-    env_logger::init();
-
     let conn = Connection::connect_to_env().unwrap();
 
     let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();

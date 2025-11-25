@@ -7,5 +7,9 @@ pkgs.mkShell {
 
     # wayland
     # wayland-protocols
+
+    # Required for building smithay-client-toolkit
+    libxkbcommon
+    pkg-config
   ];
 }

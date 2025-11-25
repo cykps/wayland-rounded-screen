@@ -128,8 +128,6 @@ impl CornerState {
                             (index / width as usize) as u32
                         }
                     };
-                    // let x = (index % width as usize) as u32;
-                    // let y = (index / width as usize) as u32;
                     let transport = 0x00000000;
                     let black = 0xFF000000;
 
@@ -148,11 +146,6 @@ impl CornerState {
         self.layer
             .wl_surface()
             .damage_buffer(0, 0, width as i32, height as i32);
-
-        // Request our next frame
-        // self.layer
-        //     .wl_surface()
-        //     .frame(qh, self.layer.wl_surface().clone());
 
         // Attach and commit to present.
         buffer
