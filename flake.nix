@@ -21,12 +21,7 @@
         devShell = pkgs.mkShell {
           nativeBuildInputs = [
             pkgs.rustup
-            pkgs.pkg-config
             pkgs.wayland
-
-            # Required for building smithay-client-toolkit
-            pkgs.libxkbcommon
-            pkgs.pkg-config
           ];
 
           shellHook = ''
@@ -44,12 +39,7 @@
           cargoSha256 = "sha256-0000000000000000000000000000000000000000000000000000"; # Replace with the actual hash
 
           nativeBuildInputs = [
-            pkgs.pkg-config
             pkgs.wayland
-
-            # Required for building smithay-client-toolkit
-            pkgs.libxkbcommon
-            pkgs.pkg-config
           ];
         };
 
