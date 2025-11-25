@@ -36,7 +36,7 @@
 
           src = ./.;
 
-          cargoSha256 = "sha256-0000000000000000000000000000000000000000000000000000";
+          cargoHash = "sha256-MDX+jyodV1lhug1DJVgPuRQNNbrkNKzzOkpVfHfG3oQ=";
 
           nativeBuildInputs = [
             pkgs.wayland
