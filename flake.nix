@@ -32,11 +32,11 @@
 
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "rounded-screen";
-          version = "0.1.0";
+          version = "0.1.1";
 
           src = ./.;
 
-          cargoHash = "sha256-MDX+jyodV1lhug1DJVgPuRQNNbrkNKzzOkpVfHfG3oQ=";
+          cargoHash = "sha256-n9AJN5NdpsP4Ba/xaNbS/q/ysctVb9iNRkmUMgu92Qg=";
 
           nativeBuildInputs = [
             pkgs.wayland
