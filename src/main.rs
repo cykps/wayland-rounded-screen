@@ -13,7 +13,7 @@ fn main() {
     let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor is not available");
     let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell is not available");
 
-    let mut state = State::new(&compositor, &globals, &qh, &layer_shell);
+    let mut state = State::new(compositor, &globals, &qh, layer_shell);
 
     // We don't draw immediately, the configure will notify us when to first draw.
     loop {

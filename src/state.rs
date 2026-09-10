@@ -1,4 +1,4 @@
-use std::{convert::TryInto, num::NonZeroU32};
+use std::convert::TryInto;
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, Region},
@@ -46,6 +46,7 @@ impl CornerState {
         shm: &Shm,
         qh: &QueueHandle<State>,
         disposition: Quadrant,
+        output: &wl_output::WlOutput,
     ) -> CornerState {
         let surface = compositor.create_surface(qh);
         let region = Region::new(compositor).expect("region is not available");
@@ -56,7 +57,7 @@ impl CornerState {
             surface,
             Layer::Overlay,
             Some("corner_layer"),
-            None,
+            Some(output),
         );
 
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
@@ -154,18 +155,93 @@ impl CornerState {
     }
 }
 
-// State Structs
-pub struct State {
+pub struct OutputCorners {
+    output: wl_output::WlOutput,
     top_left: CornerState,
     top_right: CornerState,
     bottom_left: CornerState,
     bottom_right: CornerState,
+}
 
+impl OutputCorners {
+    fn new(
+        layer_shell: &LayerShell,
+        compositor: &CompositorState,
+        shm: &Shm,
+        qh: &QueueHandle<State>,
+        output: wl_output::WlOutput,
+    ) -> OutputCorners {
+        let top_left =
+            CornerState::new(layer_shell, compositor, shm, qh, Quadrant::TopLeft, &output);
+        let top_right = CornerState::new(
+            layer_shell,
+            compositor,
+            shm,
+            qh,
+            Quadrant::TopRight,
+            &output,
+        );
+        let bottom_left = CornerState::new(
+            layer_shell,
+            compositor,
+            shm,
+            qh,
+            Quadrant::BottomLeft,
+            &output,
+        );
+        let bottom_right = CornerState::new(
+            layer_shell,
+            compositor,
+            shm,
+            qh,
+            Quadrant::BottomRight,
+            &output,
+        );
+
+        OutputCorners {
+            output,
+            top_left,
+            top_right,
+            bottom_left,
+            bottom_right,
+        }
+    }
+
+    fn configure(&mut self, qh: &QueueHandle<State>, layer: &LayerSurface) -> bool {
+        if *layer == self.top_left.layer {
+            self.top_left.configure(qh);
+            true
+        } else if *layer == self.top_right.layer {
+            self.top_right.configure(qh);
+            true
+        } else if *layer == self.bottom_left.layer {
+            self.bottom_left.configure(qh);
+            true
+        } else if *layer == self.bottom_right.layer {
+            self.bottom_right.configure(qh);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn has_layer(&self, layer: &LayerSurface) -> bool {
+        *layer == self.top_left.layer
+            || *layer == self.top_right.layer
+            || *layer == self.bottom_left.layer
+            || *layer == self.bottom_right.layer
+    }
+}
+
+// State Structs
+pub struct State {
+    compositor: CompositorState,
+    layer_shell: LayerShell,
+    outputs: Vec<OutputCorners>,
     registry_state: RegistryState,
     output_state: OutputState,
     shm: Shm,
     pub exit: bool,
-    radius: u32,
 }
 
 impl CompositorHandler for State {
@@ -223,9 +299,10 @@ impl OutputHandler for State {
     fn new_output(
         &mut self,
         _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
     ) {
+        self.add_output(qh, output);
     }
 
     fn update_output(
@@ -240,14 +317,16 @@ impl OutputHandler for State {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        output: wl_output::WlOutput,
     ) {
+        self.outputs.retain(|corners| corners.output != output);
     }
 }
 
 impl LayerShellHandler for State {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.exit = true;
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
+        self.outputs.retain(|corners| !corners.has_layer(layer));
+        self.exit = self.outputs.is_empty();
     }
 
     fn configure(
@@ -255,19 +334,13 @@ impl LayerShellHandler for State {
         _conn: &Connection,
         qh: &QueueHandle<Self>,
         layer: &LayerSurface,
-        configure: LayerSurfaceConfigure,
+        _configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        self.radius = NonZeroU32::new(configure.new_size.1).map_or(RADIUS, NonZeroU32::get);
-
-        if *layer == self.top_left.layer {
-            self.top_left.configure(qh);
-        } else if *layer == self.top_right.layer {
-            self.top_right.configure(qh);
-        } else if *layer == self.bottom_left.layer {
-            self.bottom_left.configure(qh);
-        } else if *layer == self.bottom_right.layer {
-            self.bottom_right.configure(qh);
+        for corners in &mut self.outputs {
+            if corners.configure(qh, layer) {
+                break;
+            }
         }
     }
 }
@@ -280,32 +353,37 @@ impl ShmHandler for State {
 
 impl State {
     pub fn new(
-        compositor: &CompositorState,
+        compositor: CompositorState,
         globals: &GlobalList,
         qh: &QueueHandle<State>,
-        layer_shell: &LayerShell,
+        layer_shell: LayerShell,
     ) -> State {
         let shm = Shm::bind(globals, qh).expect("wl_shm is not available");
 
-        let top_left = CornerState::new(layer_shell, compositor, &shm, qh, Quadrant::TopLeft);
-        let top_right = CornerState::new(layer_shell, compositor, &shm, qh, Quadrant::TopRight);
-        let bottom_left = CornerState::new(layer_shell, compositor, &shm, qh, Quadrant::BottomLeft);
-        let bottom_right =
-            CornerState::new(layer_shell, compositor, &shm, qh, Quadrant::BottomRight);
-
         State {
-            top_left,
-            top_right,
-            bottom_left,
-            bottom_right,
-
+            compositor,
+            layer_shell,
+            outputs: Vec::new(),
             registry_state: RegistryState::new(globals),
             output_state: OutputState::new(globals, qh),
             shm,
 
             exit: false,
-            radius: RADIUS,
         }
+    }
+
+    fn add_output(&mut self, qh: &QueueHandle<State>, output: wl_output::WlOutput) {
+        if self.outputs.iter().any(|corners| corners.output == output) {
+            return;
+        }
+
+        self.outputs.push(OutputCorners::new(
+            &self.layer_shell,
+            &self.compositor,
+            &self.shm,
+            qh,
+            output,
+        ));
     }
 }
 
